@@ -8,10 +8,20 @@ import os
 import platform
 import subprocess
 import sys
+import json
+import datetime
 from pathlib import Path
 
 # SCons environment
 env = Environment()
+
+# Load build configuration
+def load_config():
+    config_file = "build-config.json"
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            return json.load(f)
+    return {}
 
 # Colors for terminal output
 class Colors:
@@ -210,6 +220,12 @@ def build_cef_action(target, source, env):
     
     log_info("Starting cross-platform CEF build process")
     
+    # Load configuration
+    config = load_config()
+    if config:
+        log_info(f"Using CEF version: {config.get('cef_version', 'latest')}")
+        log_info(f"Build type: {config.get('build_type', 'Release')}")
+    
     try:
         # Detect operating system
         host_os = detect_os()
@@ -234,6 +250,9 @@ def build_cef_action(target, source, env):
             log_error("CEF build failed")
             return 1
         
+        # Step 4: Create completion marker
+        create_build_marker(host_os, config)
+        
         log_success("CEF build process completed successfully!")
         log_info("Your CEF build artifacts are ready in the 'builds/' directory")
         return 0
@@ -241,6 +260,18 @@ def build_cef_action(target, source, env):
     except Exception as e:
         log_error(f"Build process failed: {e}")
         return 1
+
+def create_build_marker(host_os, config):
+    """Create a build completion marker"""
+    builds_dir = "builds"
+    os.makedirs(builds_dir, exist_ok=True)
+    
+    marker_file = os.path.join(builds_dir, "cef_build_complete.marker")
+    with open(marker_file, 'w') as f:
+        f.write(f"CEF build completed successfully at {datetime.datetime.now().isoformat()}\n")
+        f.write(f"Platform: {host_os}\n")
+        f.write(f"CEF Version: {config.get('cef_version', 'unknown')}\n")
+        f.write(f"Build Type: {config.get('build_type', 'Release')}\n")
 
 # Create the build target
 cef_build_target = env.Command(

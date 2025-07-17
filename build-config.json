@@ -1,0 +1,22 @@
+{
+  "cef_version": "127.3.5",
+  "target_platform": "linux64",
+  "build_type": "Release",
+  "python_version": "3.8",
+  "chromium_branch": "6045",
+  "custom_flags": [
+    "--download-dir=./downloads",
+    "--depot-tools-dir=./depot_tools",
+    "--no-debug-build",
+    "--client-distrib",
+    "--sandbox"
+  ],
+  "build_args": {
+    "use_sysroot": "true",
+    "use_allocator": "none",
+    "symbol_level": "1",
+    "is_official_build": "true",
+    "proprietary_codecs": "true",
+    "ffmpeg_branding": "Chrome"
+  }
+}

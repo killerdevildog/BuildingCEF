@@ -12,6 +12,7 @@ import platform
 import subprocess
 import sys
 import datetime
+import json
 from pathlib import Path
 
 # Colors for terminal output
@@ -40,6 +41,14 @@ def log_error(message):
 
 def log_step(step, message):
     print(f"{Colors.BOLD}[STEP {step}]{Colors.NC} {message}")
+
+def load_config():
+    """Load build configuration"""
+    config_file = "build-config.json"
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            return json.load(f)
+    return {}
 
 def detect_os():
     """Detect the host operating system"""
@@ -249,6 +258,12 @@ def main():
     
     log_info("BuildingCEF - Cross-platform CEF build system (Pure Python)")
     log_info("Starting CEF build process...")
+    
+    # Load configuration
+    config = load_config()
+    if config:
+        log_info(f"Using CEF version: {config.get('cef_version', 'latest')}")
+        log_info(f"Build type: {config.get('build_type', 'Release')}")
     
     try:
         # Detect operating system

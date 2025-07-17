@@ -1,0 +1,91 @@
+# CEF Windows Build Environment
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+# Use PowerShell as the default shell
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Set environment variables
+ENV CEF_USE_GN=1
+ENV PYTHONUNBUFFERED=1
+ENV DEPOT_TOOLS_WIN_TOOLCHAIN=0
+
+# Install Chocolatey package manager
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Install basic dependencies via Chocolatey
+RUN choco install -y \
+    git \
+    python3 \
+    cmake \
+    ninja \
+    7zip \
+    curl \
+    wget
+
+# Install Visual Studio Build Tools 2022 with required workloads
+RUN choco install -y visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
+
+# Install Windows SDK components
+RUN choco install -y windows-sdk-10-version-2004-all
+
+# Refresh environment variables
+RUN refreshenv
+
+# Create workspace
+WORKDIR C:\workspace
+
+# Copy CEF source code from submodule
+COPY cef-source/ C:\workspace\cef-source\
+
+# Create builds output directory
+RUN New-Item -ItemType Directory -Force -Path C:\workspace\builds
+
+# Set up depot_tools (required for CEF builds)
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git C:\workspace\depot_tools
+
+# Add depot_tools to PATH
+ENV PATH="C:\workspace\depot_tools;${PATH}"
+
+# Install CEF build dependencies using their script
+WORKDIR C:\workspace\cef-source
+RUN python tools\install-build-deps.py --no-prompt
+
+# Configure VS environment variables
+RUN $vs_path = Get-ChildItem -Path 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat' -ErrorAction SilentlyContinue; \
+    if ($vs_path) { \
+        cmd /c "`"$($vs_path.FullName)`" x64 && set" | ForEach-Object { \
+            if ($_ -match '^([^=]+)=(.*)$') { \
+                [Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Machine') \
+            } \
+        } \
+    }
+
+# Configure build environment and download Chromium
+WORKDIR C:\workspace
+RUN python C:\workspace\cef-source\tools\automate\automate-git.py \
+    --download-dir=C:\workspace\chromium_git \
+    --depot-tools-dir=C:\workspace\depot_tools \
+    --no-distrib \
+    --no-build \
+    --branch=master
+
+# Build CEF
+WORKDIR C:\workspace\chromium_git\chromium\src\cef
+RUN python tools\make_distrib.py \
+    --ninja-build \
+    --x64-build \
+    --output-dir=C:\workspace\builds
+
+# Set final working directory
+WORKDIR C:\workspace
+
+# Entry point for building CEF
+CMD ["python", "C:\\workspace\\cef-source\\tools\\automate\\automate-git.py", \
+     "--download-dir=C:\\workspace\\chromium_git", \
+     "--depot-tools-dir=C:\\workspace\\depot_tools", \
+     "--distrib-subdir=windows64", \
+     "--output-dir=C:\\workspace\\builds", \
+     "--x64-build", \
+     "--branch=master"]

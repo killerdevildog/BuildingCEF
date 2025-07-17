@@ -1,0 +1,111 @@
+# CEF Linux Build Environment
+FROM ubuntu:24.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+ENV PYTHONUNBUFFERED=1
+ENV CEF_USE_GN=1
+
+# Install basic dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    build-essential \
+    software-properties-common \
+    locales \
+    && locale-gen en_US.UTF-8
+
+# Install Chrome/Chromium dependencies as per CEF build requirements
+RUN apt-get install -y \
+    libnss3-dev \
+    libatk-bridge2.0-dev \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libxss1 \
+    libasound2 \
+    libatspi2.0-0 \
+    libgtk-3-0 \
+    libgtk-4-1 \
+    fonts-liberation \
+    fonts-dejavu-core \
+    fonts-freefont-ttf \
+    fonts-ubuntu \
+    xvfb
+
+# Install additional build dependencies
+RUN apt-get install -y \
+    cmake \
+    ninja-build \
+    pkg-config \
+    libc6-dev \
+    libstdc++6 \
+    libgcc-s1 \
+    binutils \
+    lsb-release \
+    sudo \
+    file \
+    zip \
+    unzip
+
+# Install Clang/LLVM (required for CEF builds)
+RUN wget https://apt.llvm.org/llvm.sh && \
+    chmod +x llvm.sh && \
+    ./llvm.sh 17 && \
+    rm llvm.sh
+
+# Set up Python environment
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# Create workspace
+WORKDIR /workspace
+
+# Copy CEF source code from submodule
+COPY cef-source/ /workspace/cef-source/
+
+# Create builds output directory
+RUN mkdir -p /workspace/builds
+
+# Install CEF build dependencies using their script
+WORKDIR /workspace/cef-source
+RUN python3 tools/install-build-deps.py --no-prompt
+
+# Set up depot_tools (required for CEF builds)
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /workspace/depot_tools
+ENV PATH="/workspace/depot_tools:${PATH}"
+
+# Configure build environment
+RUN python3 tools/automate/automate-git.py \
+    --download-dir=/workspace/chromium_git \
+    --depot-tools-dir=/workspace/depot_tools \
+    --no-distrib \
+    --no-build \
+    --branch=master
+
+# Build CEF
+WORKDIR /workspace/chromium_git/chromium/src/cef
+RUN python3 tools/make_distrib.py \
+    --ninja-build \
+    --x64-build \
+    --output-dir=/workspace/builds
+
+# Set final working directory
+WORKDIR /workspace
+
+# Entry point for building CEF
+CMD ["python3", "/workspace/cef-source/tools/automate/automate-git.py", \
+     "--download-dir=/workspace/chromium_git", \
+     "--depot-tools-dir=/workspace/depot_tools", \
+     "--distrib-subdir=linux64", \
+     "--output-dir=/workspace/builds", \
+     "--x64-build", \
+     "--branch=master"]

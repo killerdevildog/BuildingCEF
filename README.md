@@ -30,7 +30,22 @@ BuildingCEF is a specialized repository designed to be used as a **Git submodule
 
 ## 🚀 Quick Start
 
-### As a Git Submodule
+### Step 1: Install Docker (One-time setup)
+
+First, install Docker Engine/Desktop on your host system using our bootstrap scripts:
+
+```bash
+# Linux (Ubuntu/Debian/RHEL/Fedora/Arch)
+./scripts/bootstrap/install-docker.sh
+
+# Windows (Run in Administrator PowerShell)
+.\scripts\bootstrap\install-docker.ps1
+
+# macOS (requires Homebrew)
+./scripts/bootstrap/install-docker-macos.sh
+```
+
+### Step 2: Add as Git Submodule
 
 Add BuildingCEF to your project as a submodule:
 
@@ -42,14 +57,23 @@ git submodule add https://github.com/killerdevildog/BuildingCEF.git third-party/
 git submodule update --init --recursive
 ```
 
-### Using Docker (Recommended)
+### Step 3: Build CEF using Docker (Recommended)
 
 ```bash
 # Navigate to the submodule directory
 cd third-party/BuildingCEF
 
-# Build CEF using Docker
-./build-docker.sh
+# Build for Linux
+docker build -t cef-builder-linux -f Dockerfile.linux .
+docker run --rm -v $PWD/builds:/workspace/builds cef-builder-linux
+
+# Build for Windows (on Windows host with Docker Desktop)
+docker build -t cef-builder-windows -f Dockerfile.windows .
+docker run --rm -v %cd%/builds:C:/workspace/builds cef-builder-windows
+
+# Build for macOS
+docker build -t cef-builder-macos -f Dockerfile.macos .
+docker run --rm -v $PWD/builds:/workspace/builds cef-builder-macos
 ```
 
 ### Using Python Virtual Environment
@@ -73,17 +97,24 @@ pip install -r requirements.txt
 
 ```
 BuildingCEF/
-├── 📄 README.md                 # This file
-├── 🐳 Dockerfile               # Docker build environment
-├── 🐍 requirements.txt         # Python dependencies
-├── ⚙️ build-config.json        # Build configuration
+├── 📄 README.md                     # This file
+├── 🐳 Dockerfile.linux              # Linux build environment
+├── 🐳 Dockerfile.windows            # Windows build environment
+├── 🐳 Dockerfile.macos              # macOS build environment
+├── 🐍 requirements.txt              # Python dependencies
+├── ⚙️ build-config.json             # Build configuration
 ├── 🔧 scripts/
-│   ├── build-docker.sh         # Docker build script
-│   ├── build-venv.sh          # Virtual environment build script
-│   ├── setup-environment.py   # Environment setup
-│   └── update-cef.py          # CEF version updater
-├── 📦 builds/                  # Output directory for builds
-└── 🔄 cache/                   # Build cache directory
+│   ├── bootstrap/
+│   │   ├── install-docker.sh        # Linux Docker installer
+│   │   ├── install-docker.ps1       # Windows Docker installer
+│   │   └── install-docker-macos.sh  # macOS Docker installer
+│   ├── build-docker.sh              # Docker build script
+│   ├── build-venv.sh               # Virtual environment build script
+│   ├── setup-environment.py        # Environment setup
+│   └── update-cef.py               # CEF version updater
+├── 📦 builds/                       # Output directory for builds
+├── 🔄 cache/                        # Build cache directory
+└── 🗂️ cef-source/                   # CEF source code (submodule)
 ```
 
 ## ⚙️ Configuration
@@ -123,7 +154,12 @@ Edit `build-config.json` to customize your build:
    # In your main project's build script
    git submodule update --remote --merge
    cd third-party/BuildingCEF
-   ./build-docker.sh
+   
+   # Build for target platform
+   docker build -t cef-builder-linux -f Dockerfile.linux .
+   docker run --rm -v $PWD/builds:/workspace/builds cef-builder-linux
+   
+   # Copy built CEF to your project
    cp builds/* ../../lib/cef/
    ```
 
@@ -149,7 +185,8 @@ jobs:
       - name: Update CEF Build
         run: |
           cd third-party/BuildingCEF
-          ./build-docker.sh
+          docker build -t cef-builder-linux -f Dockerfile.linux .
+          docker run --rm -v $PWD/builds:/workspace/builds cef-builder-linux
 ```
 
 ## 🐳 Docker Environment

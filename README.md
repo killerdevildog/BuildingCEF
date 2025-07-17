@@ -30,6 +30,36 @@ BuildingCEF is a specialized repository designed to be used as a **Git submodule
 
 ## 🚀 Quick Start
 
+### One-Command Build (Recommended)
+
+The simplest way to build CEF is using our automated build drivers:
+
+```bash
+# SCons (preferred - auto-detects OS and handles everything)
+scons
+
+# CMake (fallback option)
+cmake -B build && cmake --build build
+
+# Pure Python (fallback when SCons/CMake unavailable)
+python build.py
+```
+
+**Requirements:**
+- **Windows**: Run from Administrator PowerShell/Command Prompt
+- **Linux/macOS**: Regular user privileges (will prompt for sudo if needed)
+
+The build process automatically:
+1. 🔍 Detects your operating system (Linux/Windows/macOS)
+2. 🐳 Installs Docker if not already present
+3. 🏗️ Builds the appropriate CEF container
+4. ⚡ Runs the CEF build process (1-3 hours)
+5. 📦 Outputs artifacts to `builds/` directory
+
+### Manual Setup (Advanced Users)
+
+If you prefer manual control or need to customize the process:
+
 ### Step 1: Install Docker (One-time setup)
 
 First, install Docker Engine/Desktop on your host system using our bootstrap scripts:
@@ -57,7 +87,7 @@ git submodule add https://github.com/killerdevildog/BuildingCEF.git third-party/
 git submodule update --init --recursive
 ```
 
-### Step 3: Build CEF using Docker (Recommended)
+### Step 3: Build CEF using Docker
 
 ```bash
 # Navigate to the submodule directory
@@ -98,6 +128,9 @@ pip install -r requirements.txt
 ```
 BuildingCEF/
 ├── 📄 README.md                     # This file
+├── 🏗️ SConstruct                    # SCons build driver (preferred)
+├── 🏗️ CMakeLists.txt               # CMake build driver (fallback)
+├── 🏗️ build.py                     # Python build driver (fallback)
 ├── 🐳 Dockerfile.linux              # Linux build environment
 ├── 🐳 Dockerfile.windows            # Windows build environment
 ├── 🐳 Dockerfile.macos              # macOS build environment
@@ -155,7 +188,10 @@ Edit `build-config.json` to customize your build:
    git submodule update --remote --merge
    cd third-party/BuildingCEF
    
-   # Build for target platform
+   # One-command build (preferred)
+   scons
+   
+   # Or manual Docker commands
    docker build -t cef-builder-linux -f Dockerfile.linux .
    docker run --rm -v $PWD/builds:/workspace/builds cef-builder-linux
    
@@ -185,8 +221,7 @@ jobs:
       - name: Update CEF Build
         run: |
           cd third-party/BuildingCEF
-          docker build -t cef-builder-linux -f Dockerfile.linux .
-          docker run --rm -v $PWD/builds:/workspace/builds cef-builder-linux
+          python build.py  # Use Python driver for CI/CD compatibility
 ```
 
 ## 🐳 Docker Environment
@@ -220,6 +255,43 @@ For lighter-weight builds without Docker:
 | Windows x64 | ✅ | ✅ | Stable |
 | macOS x64 | ✅ | ✅ | Beta |
 | macOS ARM64 | ✅ | ❌ | Planned |
+
+## 🔧 Build Drivers
+
+BuildingCEF provides three build driver options for maximum compatibility:
+
+### 🥇 SCons (Recommended)
+```bash
+scons           # Build CEF for current platform
+scons -c        # Clean build artifacts  
+scons -h        # Show help
+```
+- **Pros**: Full-featured, colored output, comprehensive error handling
+- **Cons**: Requires SCons installation (`pip install scons`)
+
+### 🥈 CMake (Fallback)
+```bash
+cmake -B build && cmake --build build    # Build CEF
+cmake --build build --target clean       # Clean
+```
+- **Pros**: Widely available, good IDE integration
+- **Cons**: Less colorful output, basic error handling
+
+### 🥉 Pure Python (Universal Fallback)
+```bash
+python build.py        # Build CEF for current platform
+python build.py --help # Show help
+```
+- **Pros**: No dependencies, works everywhere Python is available
+- **Cons**: Basic output formatting, minimal features
+
+All build drivers:
+- ✅ Auto-detect operating system (Linux/Windows/macOS)
+- ✅ Install Docker automatically if missing
+- ✅ Build appropriate CEF container
+- ✅ Handle platform-specific volume mounting
+- ✅ Create build completion markers
+- ✅ Provide clear error messages and exit codes
 
 ## 🔧 Troubleshooting
 
